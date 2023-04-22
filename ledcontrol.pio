@@ -30,7 +30,7 @@ static inline void ledcontrol_init (PIO pio, uint sm, uint offset, uint pin_num,
     pio_gpio_init (pio, pin_num);
 
         // Use the state machine to set GPIO `pin_num` as an output
-    pio_sm_set_consecutive_pindirs(pio, sm, pin_num, 1, true);
+    pio_sm_set_consecutive_pindirs (pio, sm, pin_num, 1, true);
 
         // Load our configuration and initialise the program counter of the state machine to
         // our public `start` label. NOTE that pioasm prepends '<program-name>_offset_' to it!
