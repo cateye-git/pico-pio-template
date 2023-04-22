@@ -1,0 +1,41 @@
+.program ledcontrol
+
+; Repeatedly get one word of data from the TX FIFO, stalling when the FIFO is
+; empty. Write the least significant bit to the OUT pin group (see below)
+
+.wrap_target
+public start:       ; we make this 'public' so that it's visible in our helper function
+    pull            ; fetch a 32bit word from the TX FIFO into the OSR 
+    out pins, 1     ; take one bit from the OSR and apply it to the 'set' pin(s)
+.wrap               ; automatically jump to .wrap_target 
+
+
+;; a simple 'helper' function that we will use to initialise the state machine
+;; and a single GPIO ouput pin
+% c-sdk {
+static inline void ledcontrol_init (PIO pio, uint sm, uint offset, uint pin_num, float clock_freq) {
+        // pioasm automatically generates a `<program-name>_program_get_default_config()`
+        // function that returns a state machine configuration containing the .wrap and 
+        // .wrap_target offsets.
+    pio_sm_config c = ledcontrol_program_get_default_config (offset);
+
+        // add a clock division ratio to the state machine config (optional)
+    float div = clock_get_hz (clk_sys) / (clock_freq);
+    sm_config_set_clkdiv (&c, div);
+
+        // define the state machine's OUT pin-group: one GPIO starting at GPIO `pin_num`
+    sm_config_set_out_pins (&c, pin_num, 1);
+
+        // Configure GPIO `pin_num` to be controlled by the PIO instead of the CPU
+    pio_gpio_init (pio, pin_num);
+
+        // Use the state machine to set GPIO `pin_num` as an output
+    pio_sm_set_consecutive_pindirs(pio, sm, pin_num, 1, true);
+
+        // Load our configuration and initialise the program counter of the state machine to
+        // our public `start` label. NOTE that pioasm prepends '<program-name>_offset_' to it!
+    pio_sm_init (pio, sm, offset + ledcontrol_offset_start, &c);
+        // Set the state machine running
+    pio_sm_set_enabled (pio, sm, true);
+}
+%}
